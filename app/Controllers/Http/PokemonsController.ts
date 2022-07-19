@@ -17,14 +17,25 @@ import {
   EvolutionTrigger,
   Item,
   Location,
+  Move,
 } from '../../../utils/types'
-const P = new Pokedex()
+
+const options = {
+  cacheLimit: 100 * 1000 * 1000, // 100s
+  timeout: 20 * 1000, // 5s
+}
+
+const P = new Pokedex(options)
 
 const SPRITE_URL =
   'https://github.com/PokeAPI/sprites/blob/master/sprites/pokemon/other/official-artwork'
 
 export default class PokemonsController {
-  public async getPokemons({ request, response }: HttpContextContract) {
+  /**
+   * Returns all porkemons
+   * @returns
+   */
+  public async list({ request, response }: HttpContextContract) {
     const language = request.header('accept-language')
 
     const querySchema = schema.create({
@@ -85,7 +96,11 @@ export default class PokemonsController {
     }
   }
 
-  public async getPokemon({ params, request }: HttpContextContract) {
+  /**
+   * Returns just one pokemon basic infos
+   * @returns
+   */
+  public async get({ params, request }: HttpContextContract) {
     const language = request.header('accept-language')
     const id = params.id
 
@@ -116,7 +131,30 @@ export default class PokemonsController {
     // Récupération du génôme en français
     const genus = specie.genera.filter((f) => f.language.name === language)[0].genus
 
-    // SECTION ABOUT
+    return {
+      name: pokeName,
+      types: typesFr,
+      color: {
+        name: colorFr,
+        id: specie.color.name,
+      },
+      spriteUrl: `${SPRITE_URL}/${pokemon.id}.png?raw=true`,
+      number: '#' + pokemon.id.toString().padStart(3, '0'),
+      id: pokemon.id,
+      genus,
+    }
+  }
+
+  public async about({ params, request }: HttpContextContract) {
+    const language = request.header('accept-language')
+    const id = params.id
+
+    // Récupération du pokémon
+    const pokemon = (await P.getPokemonByName(id)) as Pokemon
+
+    // Récupération de l'espèce
+    const specie = (await P.getPokemonSpeciesByName(id)) as PokemonSpecies
+
     // Récupération du texte pokedex
     const flavorText = specie.flavor_text_entries
       .find((te) => te.language.name === language)
@@ -139,6 +177,28 @@ export default class PokemonsController {
       })
     )
 
+    return {
+      flavorText,
+      height,
+      weight,
+      breed: {
+        genderRate,
+        hatchCount,
+        eggGroups,
+      },
+    }
+  }
+
+  public async stats({ params, request }: HttpContextContract) {
+    const language = request.header('accept-language')
+    const id = params.id
+
+    // Récupération du pokémon
+    const pokemon = (await P.getPokemonByName(id)) as Pokemon
+
+    const pokemonTypes = pokemon.types.map((t) => t.type.name)
+    const types = (await Promise.all(pokemonTypes.map((t) => P.getTypeByName(t)))) as Type[]
+
     // SECTION Stats
     const pokemonStats = await Promise.all(
       pokemon.stats.map(async (stat) => {
@@ -149,9 +209,48 @@ export default class PokemonsController {
         }
       })
     )
+
     const damagesInfos = getDamagesInfos(types)
 
-    // SECTION Evolutions
+    return {
+      values: pokemonStats,
+      damagesInfos,
+    }
+  }
+  public async moves({ params, request }: HttpContextContract) {
+    const language = request.header('accept-language')
+    const id = params.id
+
+    // Récupération du pokémon
+    const pokemon = (await P.getPokemonByName(id)) as Pokemon
+
+    // SECTION Moves
+    const moves = await Promise.all(
+      pokemon.moves.map(async (m) => {
+        const move = (await P.getMoveByName(m.move.name)) as Move
+        const moveName = move.names.filter((m) => m.language.name === language)[0].name
+        const type = (await P.getTypeByName(move.type.name)) as Type
+        return {
+          name: moveName,
+          type: type.names.filter((t) => t.name === language)[0]?.name || type.name,
+        }
+      })
+    )
+
+    return moves
+  }
+
+  public async chains({ params, request }: HttpContextContract) {
+    const language = request.header('accept-language')
+    const id = params.id
+
+    // Récupération de l'espèce
+    const specie = (await P.getPokemonSpeciesByName(id)) as PokemonSpecies
+
+    // Récupération du nom i18n
+    const pokeName = specie.names.filter((pokeAPIName) => pokeAPIName.language.name === language)[0]
+      .name
+
     // Evolutions classiques
     const evolutionChains = (await P.getEvolutionChainById(
       +specie.evolution_chain.url.split('/').slice(-2)[0]
@@ -219,37 +318,10 @@ export default class PokemonsController {
           }
         })
     )
+
     return {
-      pokemon: {
-        name: pokeName,
-        types: typesFr,
-        color: {
-          name: colorFr,
-          id: specie.color.name,
-        },
-        spriteUrl: `${SPRITE_URL}/${pokemon.id}.png?raw=true`,
-        number: '#' + pokemon.id.toString().padStart(3, '0'),
-        id: pokemon.id,
-        genus,
-      },
-      about: {
-        flavorText,
-        height,
-        weight,
-        breed: {
-          genderRate,
-          hatchCount,
-          eggGroups,
-        },
-      },
-      stats: {
-        values: pokemonStats,
-        damagesInfos,
-      },
-      chains: {
-        regular: flattenDeep(chains),
-        varietties,
-      },
+      regular: flattenDeep(chains),
+      varietties,
     }
   }
 }
@@ -259,7 +331,7 @@ async function getEvolutionDetails(language: string, from: string, evolves_to: C
     evolves_to.map(async (evolution) => {
       const specieFrom = (await P.getPokemonSpeciesByName(from)) as PokemonSpecies
       const specieTo = (await P.getPokemonSpeciesByName(evolution.species.name)) as PokemonSpecies
-      const detail = await Promise.all(
+      const details = await Promise.all(
         evolution.evolution_details.map(async (evolutionDetail) => {
           // Ce qui trigger l'évolution :
           const evolutionTrigger = (await P.getEvolutionTriggerByName(
@@ -318,7 +390,7 @@ async function getEvolutionDetails(language: string, from: string, evolves_to: C
             spriteUrl: `${SPRITE_URL}/${specieTo.id}.png?raw=true`,
             id: specieTo.id,
           },
-          detail,
+          details,
         },
         ...chains,
       ]

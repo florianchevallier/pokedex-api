@@ -21,6 +21,10 @@
 import Route from '@ioc:Adonis/Core/Route'
 
 Route.group(() => {
-  Route.get('/pokemons', 'PokemonsController.getPokemons')
-  Route.get('/pokemons/:id', 'PokemonsController.getPokemon')
+  Route.get('/pokemons', 'PokemonsController.list')
+  Route.get('/pokemons/:id', 'PokemonsController.get')
+  Route.get('/pokemons/:id/about', 'PokemonsController.about')
+  Route.get('/pokemons/:id/chains', 'PokemonsController.chains')
+  Route.get('/pokemons/:id/stats', 'PokemonsController.stats')
+  Route.get('/pokemons/:id/moves', 'PokemonsController.moves')
 }).prefix('api')
