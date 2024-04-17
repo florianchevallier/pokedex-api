@@ -104,21 +104,21 @@ export async function getEvolutionDetails(from: string, evolves_to: IChainLink[]
             },
             item: evolutionItem
               ? {
-                ...evolutionDetail.item,
-                name: evolutionItem.names.find((n) => n.language.name === 'fr').name,
-              }
+                  ...evolutionDetail.item,
+                  name: evolutionItem.names.find((n) => n.language.name === 'fr').name,
+                }
               : null,
             known_move_type: knownMoveType
               ? {
-                ...evolutionDetail.known_move_type,
-                name: knownMoveType.names.find((n) => n.language.name === 'fr').name,
-              }
+                  ...evolutionDetail.known_move_type,
+                  name: knownMoveType.names.find((n) => n.language.name === 'fr').name,
+                }
               : null,
             location: locations
               ? {
-                ...evolutionDetail.location,
-                name: locations.names.find((n) => n.language.name === 'fr').name,
-              }
+                  ...evolutionDetail.location,
+                  name: locations.names.find((n) => n.language.name === 'fr').name,
+                }
               : null,
           }
         })

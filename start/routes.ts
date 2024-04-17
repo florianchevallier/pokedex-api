@@ -18,13 +18,16 @@
 |
 */
 
-import Route from '@ioc:Adonis/Core/Route'
+import router from '@adonisjs/core/services/router'
+const PokemonsController = () => import('#controllers/pokemons_controller')
 
-Route.group(() => {
-  Route.get('/pokemons', 'PokemonsController.list')
-  Route.get('/pokemons/:id', 'PokemonsController.get')
-  Route.get('/pokemons/:id/about', 'PokemonsController.about')
-  Route.get('/pokemons/:id/chains', 'PokemonsController.chains')
-  Route.get('/pokemons/:id/stats', 'PokemonsController.stats')
-  Route.get('/pokemons/:id/moves', 'PokemonsController.moves')
-}).prefix('api')
+router
+  .group(() => {
+    router.get('/pokemons', [PokemonsController, 'list'])
+    router.get('/pokemons/:id', [PokemonsController, 'get'])
+    router.get('/pokemons/:id/about', [PokemonsController, 'about'])
+    router.get('/pokemons/:id/chains', [PokemonsController, 'chains'])
+    router.get('/pokemons/:id/stats', [PokemonsController, 'stats'])
+    router.get('/pokemons/:id/moves', [PokemonsController, 'moves'])
+  })
+  .prefix('api')

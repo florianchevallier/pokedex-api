@@ -1,8 +1,8 @@
 /* eslint-disable import/no-unresolved */
 import axios, { AxiosResponse } from 'axios'
 
-import handleError from './ErrorHandler'
-import PokeAPIOptions from '../interfaces/PokeAPIOptions'
+import handleError from './ErrorHandler.js'
+import PokeAPIOptions from '../interfaces/PokeAPIOptions.js'
 
 // eslint-disable-next-line consistent-return
 async function getJSON<T>(

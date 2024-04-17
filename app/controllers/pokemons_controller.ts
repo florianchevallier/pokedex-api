@@ -1,9 +1,7 @@
-import { schema, validator } from '@ioc:Adonis/Core/Validator'
-import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
-import Pokedex from '../../../utils/pokeapi'
-import { flattenDeep } from 'lodash'
+import type { HttpContext } from '@adonisjs/core/http'
+import Pokedex from '#utils/pokeapi/index'
 
-import { dgToKg, dmTom, getDamagesInfos } from '../../../utils/pokedex'
+import { dgToKg, dmTom, getDamagesInfos } from '#utils/pokedex'
 import {
   Pokemon,
   PokemonSpecies,
@@ -18,41 +16,32 @@ import {
   Item,
   Location,
   Move,
-} from '../../../utils/types'
+} from '#utils/types'
+import env from '#start/env'
+import { listPokemonValidator } from '#validators/pokemon_validator'
+import logger from '@adonisjs/core/services/logger'
 
 const options = {
   cacheLimit: 100 * 1000 * 1000, // 100s
-  timeout: 20 * 1000, // 5s
+  timeout: 80 * 1000, // 5s
 }
 
 const P = new Pokedex(options)
 
-const SPRITE_URL =
-  'https://github.com/PokeAPI/sprites/blob/master/sprites/pokemon/other/official-artwork'
-
 export default class PokemonsController {
   /**
-   * Returns all porkemons
-   * @returns
+   * Liste les pokémons avec pagination et les informations de base dans la langue spécifiée.
+   * @param {HttpContext} context - Le contexte HTTP contenant la requête et la réponse.
    */
-  public async list({ request, response }: HttpContextContract) {
+  async list({ request, response }: HttpContext) {
     const language = request.header('accept-language')
 
-    const querySchema = schema.create({
-      limit: schema.number(),
-      offset: schema.number(),
-    })
+    const data = request.all()
 
     try {
-      const payload = await request.validate({
-        schema: querySchema,
-        reporter: validator.reporters.api,
-      })
-
+      const payload = await listPokemonValidator.validate(data)
       const { offset, limit } = payload
-
       const allPokemons = await P.getPokemonsList({ offset, limit })
-
       const pokemonsPromises = allPokemons.results.map(async (p) => {
         // Récupération du pokémon
         const pokemon = (await P.getPokemonByName(p.name)) as Pokemon
@@ -64,7 +53,7 @@ export default class PokemonsController {
         const pokemonTypes = pokemon.types.map((t) => t.type.name)
         const types = (await Promise.all(pokemonTypes.map((t) => P.getTypeByName(t)))) as Type[]
         const typesFr = types
-          .map((t) => t.names.filter((name) => name.language.name === language)[0].name)
+          .map((t) => t.names.filter((name) => name.language.name === language)[0]?.name)
           .map((t) => t.toLowerCase())
 
         // Récupération des couleurs en français
@@ -82,7 +71,7 @@ export default class PokemonsController {
             name: colorFr,
             id: specie.color.name,
           },
-          spriteUrl: `${SPRITE_URL}/${pokemon.id}.png?raw=true`,
+          spriteUrl: `${env.get('POKE_SPRITE_URL')}/${pokemon.id}.png?raw=true`,
           number: '#' + pokemon.id.toString().padStart(3, '0'),
           id: pokemon.id,
         }
@@ -92,6 +81,7 @@ export default class PokemonsController {
 
       return pokemons
     } catch (err) {
+      logger.error(err)
       response.badRequest(err)
     }
   }
@@ -100,7 +90,7 @@ export default class PokemonsController {
    * Returns just one pokemon basic infos
    * @returns
    */
-  public async get({ params, request }: HttpContextContract) {
+  async get({ params, request }: HttpContext) {
     const language = request.header('accept-language')
     const id = params.id
 
@@ -138,14 +128,14 @@ export default class PokemonsController {
         name: colorFr,
         id: specie.color.name,
       },
-      spriteUrl: `${SPRITE_URL}/${pokemon.id}.png?raw=true`,
+      spriteUrl: `${env.get('POKE_SPRITE_URL')}/${pokemon.id}.png?raw=true`,
       number: '#' + pokemon.id.toString().padStart(3, '0'),
       id: pokemon.id,
       genus,
     }
   }
 
-  public async about({ params, request }: HttpContextContract) {
+  async about({ params, request }: HttpContext) {
     const language = request.header('accept-language')
     const id = params.id
 
@@ -189,7 +179,7 @@ export default class PokemonsController {
     }
   }
 
-  public async stats({ params, request }: HttpContextContract) {
+  async stats({ params, request }: HttpContext) {
     const language = request.header('accept-language')
     const id = params.id
 
@@ -217,7 +207,7 @@ export default class PokemonsController {
       damagesInfos,
     }
   }
-  public async moves({ params, request }: HttpContextContract) {
+  async moves({ params, request }: HttpContext) {
     const language = request.header('accept-language')
     const id = params.id
 
@@ -226,13 +216,16 @@ export default class PokemonsController {
 
     // SECTION Moves
     const moves = await Promise.all(
-      pokemon.moves.map(async (m) => {
-        const move = (await P.getMoveByName(m.move.name)) as Move
-        const moveName = move.names.filter((m) => m.language.name === language)[0].name
+      pokemon.moves.map(async (moveData) => {
+        const move = (await P.getMoveByName(moveData.move.name)) as Move
+        const moveName = move.names.find((mn) => mn.language.name === language)?.name || move.name
         const type = (await P.getTypeByName(move.type.name)) as Type
         return {
           name: moveName,
-          type: type.names.filter((t) => t.name === language)[0]?.name || type.name,
+          type: type.names.filter((t) => t.language.name === language)[0]?.name || type.name,
+          power: move.power,
+          accuracy: move.accuracy,
+          pp: move.pp,
         }
       })
     )
@@ -240,7 +233,7 @@ export default class PokemonsController {
     return moves
   }
 
-  public async chains({ params, request }: HttpContextContract) {
+  async chains({ params, request }: HttpContext) {
     const language = request.header('accept-language')
     const id = params.id
 
@@ -309,65 +302,83 @@ export default class PokemonsController {
           return {
             from: {
               name: pokeName,
-              spriteUrl: `${SPRITE_URL}/${specie.id}.png?raw=true`,
+              spriteUrl: `${env.get('POKE_SPRITE_URL')}/${specie.id}.png?raw=true`,
             },
             to: {
               name,
-              spriteUrl: `${SPRITE_URL}/${v.id}.png?raw=true`,
+              spriteUrl: `${env.get('POKE_SPRITE_URL')}/${v.id}.png?raw=true`,
             },
           }
         })
     )
 
     return {
-      regular: flattenDeep(chains),
+      regular: chains.flat(Number.POSITIVE_INFINITY),
       varietties,
     }
   }
 }
 
-async function getEvolutionDetails(language: string, from: string, evolves_to: Chain[]) {
-  return await Promise.all(
-    evolves_to.map(async (evolution) => {
-      const specieFrom = (await P.getPokemonSpeciesByName(from)) as PokemonSpecies
-      const specieTo = (await P.getPokemonSpeciesByName(evolution.species.name)) as PokemonSpecies
+interface EvolutionDetailResult {
+  trigger: string
+  item: string | null
+  known_move_type: string | null
+  location: string | null
+}
+
+interface EvolutionResult {
+  from: {
+    name: string
+    spriteUrl: string
+    id: number
+  }
+  to: {
+    name: string
+    spriteUrl: string
+    id: number
+  }
+  details: EvolutionDetailResult[]
+}
+
+async function getEvolutionDetails(
+  language: string,
+  from: string,
+  evolves_to: Chain[]
+): Promise<EvolutionResult[][]> {
+  return Promise.all(
+    evolves_to.map(async (evolution): Promise<EvolutionResult[]> => {
+      const [specieFrom, specieTo] = (await Promise.all([
+        P.getPokemonSpeciesByName(from),
+        P.getPokemonSpeciesByName(evolution.species.name),
+      ])) as [PokemonSpecies, PokemonSpecies]
+
       const details = await Promise.all(
-        evolution.evolution_details.map(async (evolutionDetail) => {
-          // Ce qui trigger l'évolution :
+        evolution.evolution_details.map(async (evolutionDetail): Promise<EvolutionDetailResult> => {
           const evolutionTrigger = (await P.getEvolutionTriggerByName(
             evolutionDetail.trigger.name
           )) as EvolutionTrigger
-          const evolutionTriggerNameFr = evolutionTrigger.names.filter(
-            (n) => n.language.name === language
-          )[0].name
+          const evolutionTriggerNameFr =
+            evolutionTrigger.names.find((n) => n.language.name === language)?.name || ''
 
-          // Si c'est un item : le nom fr
-          let evolutionItemFr: string | null = null
-          if (evolutionDetail.item) {
-            const evolutionItem = (await P.getItemByName(evolutionDetail.item.name)) as Item
-            evolutionItemFr = evolutionItem.names.filter((ev) => ev.language.name === language)[0]
-              .name
-          }
+          const evolutionItemFr = evolutionDetail.item
+            ? ((await P.getItemByName(evolutionDetail.item.name)) as Item).names.find(
+                (ev) => ev.language.name === language
+              )?.name || null
+            : null
 
-          // Si c'est un move : le nom fr
-          let knownMoveTypeFr: string | null = null
-          if (evolutionDetail.known_move_type) {
-            const knownMoveType = (await P.getTypeByName(
-              evolutionDetail.known_move_type.name
-            )) as Type
-            knownMoveTypeFr = knownMoveType.names.filter((ev) => ev.language.name === language)[0]
-              .name
-          }
+          const knownMoveTypeFr = evolutionDetail.known_move_type
+            ? ((await P.getTypeByName(evolutionDetail.known_move_type.name)) as Type).names.find(
+                (ev) => ev.language.name === language
+              )?.name || null
+            : null
 
-          // Si c'est une localisation
-          let locationFr: string | null = null
-          if (evolutionDetail.location) {
-            const locations = (await P.getLocationByName(evolutionDetail.location.name)) as Location
-            locationFr = locations.names.filter((ev) => ev.language.name === language)[0].name
-          }
+          const locationFr = evolutionDetail.location
+            ? ((await P.getLocationByName(evolutionDetail.location.name)) as Location).names.find(
+                (ev) => ev.language.name === language
+              )?.name || null
+            : null
 
           return {
-            ...evolutionDetail,
             trigger: evolutionTriggerNameFr,
             item: evolutionItemFr,
             known_move_type: knownMoveTypeFr,
@@ -376,23 +387,27 @@ async function getEvolutionDetails(language: string, from: string, evolves_to: C
         })
       )
 
-      let chains = await getEvolutionDetails(language, evolution.species.name, evolution.evolves_to)
+      const chains = await getEvolutionDetails(
+        language,
+        evolution.species.name,
+        evolution.evolves_to
+      )
 
       return [
         {
           from: {
-            name: specieFrom.names.filter((p) => p.language.name === language)[0].name,
-            spriteUrl: `${SPRITE_URL}/${specieFrom.id}.png?raw=true`,
+            name: specieFrom.names.find((p) => p.language.name === language)?.name || '',
+            spriteUrl: `${env.get('POKE_SPRITE_URL')}/${specieFrom.id}.png?raw=true`,
             id: specieFrom.id,
           },
           to: {
-            name: specieTo.names.filter((p) => p.language.name === language)[0].name,
-            spriteUrl: `${SPRITE_URL}/${specieTo.id}.png?raw=true`,
+            name: specieTo.names.find((p) => p.language.name === language)?.name || '',
+            spriteUrl: `${env.get('POKE_SPRITE_URL')}/${specieTo.id}.png?raw=true`,
             id: specieTo.id,
           },
           details,
         },
-        ...chains,
+        ...chains.flat(),
       ]
     })
   )

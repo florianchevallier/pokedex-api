@@ -1977,3 +1977,24 @@ export interface ListEndpointOptions {
   /** The limit of the cache in milliseconds */
   cacheLimit?: number
 }
+
+export interface EvolutionDetailResult {
+  trigger: string
+  item: string | null
+  known_move_type: string | null
+  location: string | null
+}
+
+export interface EvolutionResult {
+  from: {
+    name: string
+    spriteUrl: string
+    id: number
+  }
+  to: {
+    name: string
+    spriteUrl: string
+    id: number
+  }
+  details: EvolutionDetailResult[]
+}

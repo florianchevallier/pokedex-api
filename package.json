@@ -2,68 +2,66 @@
   "name": "pokedex-api",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
   "scripts": {
+    "start": "node bin/server.js",
+    "build": "node ace build",
     "dev": "node ace serve --watch",
-    "build": "node ace build --production",
-    "start": "node server.js",
-    "lint": "eslint . --ext=.ts",
-    "format": "prettier --write ."
+    "test": "node ace test",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit"
   },
-  "eslintConfig": {
-    "extends": [
-      "plugin:adonis/typescriptApp",
-      "prettier"
-    ],
-    "plugins": [
-      "prettier"
-    ],
-    "rules": {
-      "prettier/prettier": [
-        "error"
-      ]
-    }
-  },
-  "eslintIgnore": [
-    "build"
-  ],
-  "prettier": {
-    "trailingComma": "es5",
-    "semi": false,
-    "singleQuote": true,
-    "useTabs": false,
-    "quoteProps": "consistent",
-    "bracketSpacing": true,
-    "arrowParens": "always",
-    "printWidth": 100
+  "imports": {
+    "#controllers/*": "./app/controllers/*.js",
+    "#exceptions/*": "./app/exceptions/*.js",
+    "#models/*": "./app/models/*.js",
+    "#services/*": "./app/services/*.js",
+    "#listeners/*": "./app/listeners/*.js",
+    "#events/*": "./app/events/*.js",
+    "#middleware/*": "./app/middleware/*.js",
+    "#validators/*": "./app/validators/*.js",
+    "#start/*": "./start/*.js",
+    "#config/*": "./config/*.js",
+    "#app/*": "./app/*.js",
+    "#database/*": "./database/*.js",
+    "#contracts/*": "./contracts/*.js",
+    "#utils/*": "./utils/*.js"
   },
   "devDependencies": {
-    "@adonisjs/assembler": "^5.8.0",
-    "@japa/preset-adonis": "^1.1.0",
-    "@japa/runner": "^2.0.9",
-    "adonis-preset-ts": "^2.1.0",
-    "eslint": "^8.19.0",
-    "eslint-config-prettier": "^8.5.0",
-    "eslint-plugin-adonis": "^2.1.0",
-    "eslint-plugin-prettier": "^4.2.1",
-    "pino-pretty": "^8.1.0",
-    "prettier": "^2.7.1",
-    "typescript": "~4.6",
-    "youch": "^3.2.0",
-    "youch-terminal": "^2.1.4"
+    "@adonisjs/assembler": "^7.4.0",
+    "@adonisjs/eslint-config": "^1.3.0",
+    "@adonisjs/prettier-config": "^1.3.0",
+    "@adonisjs/tsconfig": "^1.3.0",
+    "@japa/api-client": "^2.0.3",
+    "@japa/assert": "^3.0.0",
+    "@japa/plugin-adonisjs": "^3.0.1",
+    "@japa/runner": "^3.1.2",
+    "@swc/core": "^1.4.13",
+    "@types/node": "^20.12.7",
+    "eslint": "^8.56.0",
+    "pino-pretty": "^11.0.0",
+    "prettier": "^3.2.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
   },
   "dependencies": {
-    "@adonisjs/core": "^5.8.4",
-    "@adonisjs/repl": "^3.1.11",
-    "@adonisjs/session": "^6.4.0",
-    "@adonisjs/shield": "^7.0.11",
-    "@adonisjs/view": "^6.1.6",
-    "@types/lodash": "^4.14.182",
-    "axios": "^0.27.2",
+    "@adonisjs/auth": "^9.2.0",
+    "@adonisjs/core": "^6.5.0",
+    "@adonisjs/cors": "^2.2.1",
+    "@adonisjs/lucid": "^20.5.1",
+    "@types/lodash": "^4.17.0",
+    "@vinejs/vine": "^1.8.0",
+    "axios": "^1.6.8",
     "lodash": "^4.17.21",
     "node-cache": "^5.1.2",
-    "pokedex-promise-v2": "^4.0.0",
+    "pokedex-promise-v2": "^4.2.0",
     "proxy-addr": "^2.0.7",
-    "reflect-metadata": "^0.1.13",
-    "source-map-support": "^0.5.21"
-  }
+    "reflect-metadata": "^0.2.2"
+  },
+  "eslintConfig": {
+    "extends": "@adonisjs/eslint-config/app"
+  },
+  "prettier": "@adonisjs/prettier-config"
 }

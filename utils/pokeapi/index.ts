@@ -6,10 +6,10 @@
 import pMap from "p-map";
 import NodeCache from "node-cache";
 import PokeAPITypes from "pokedex-promise-v2";
-import ListEndpointOptions from "./interfaces/ListEndpointOptions";
-import PokeAPIOptions from "./interfaces/PokeAPIOptions";
-import handleError from "./utils/ErrorHandler";
-import getJSON from "./utils/Getter";
+import ListEndpointOptions from "./interfaces/ListEndpointOptions.js";
+import PokeAPIOptions from "./interfaces/PokeAPIOptions.js";
+import handleError from "./utils/ErrorHandler.js";
+import getJSON from "./utils/Getter.js";
 
 
 export default class Pokedex {
